@@ -1,12 +1,10 @@
 import os
 import asyncio
-import aiohttp
 import aiofiles
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import io
-
 
 # Путь к файлу учетных данных
 SERVICE_ACCOUNT_FILE = 'artful-abode-394612-269fa32007e4.json'
@@ -28,17 +26,23 @@ async def download_file(drive, file_id, filename):
     print('Destination Path:', dest_path)
 
     request = drive.files().get_media(fileId=file_id)
-    fh = io.FileIO(dest_path, 'wb')
-    downloader = MediaIoBaseDownload(fh, request)
+
+    # Создаем временный буфер для загрузки файла
+    buffer = io.BytesIO()
+    downloader = MediaIoBaseDownload(buffer, request)
 
     done = False
-    while done is False:
+    while not done:
         status, done = downloader.next_chunk()
         print(f"Downloaded {int(status.progress() * 100)}%.")
 
+    # Асинхронно записываем данные из буфера в файл
+    async with aiofiles.open(dest_path, 'wb') as fh:
+        await fh.write(buffer.getvalue())
+
 
 # Перечислить файлы в Google Drive
-async def list_files(drive):
+def list_files(drive):
     results = drive.files().list(
         q="'1ioZ6c31Dth-l16eLWBJi3zJ6bBkNbUv0' in parents",
         fields="files(id, name)"
@@ -49,24 +53,24 @@ async def list_files(drive):
         return []
     else:
         print('Files:')
-        download_tasks = []
         for item in items:
             print(f"{item['name']} ({item['id']})")
-            download_tasks.append(download_file(drive, item['id'], item['name']))
-        return download_tasks
+        return items
 
 
 # Скачать XML-файлы Growbox
 async def download_growbox_xml():
     try:
         drive = create_drive_service()
-        download_tasks = await list_files(drive)
+        items = list_files(drive)
+        download_tasks = [download_file(drive, item['id'], item['name']) for item in items]
         await asyncio.gather(*download_tasks)
         print('All files downloaded.')
     except Exception as e:
         print(f"An error occurred: {e}")
 
+
 # Пример использования:
-# asyncio.run(download_growbox_xml())
+asyncio.run(download_growbox_xml())
 
 
