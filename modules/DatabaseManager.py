@@ -1,6 +1,6 @@
 import os
 import asyncio
-from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path='.env.dev')
@@ -20,10 +20,9 @@ db_collection = os.getenv('DB_COLL')
 
 async def fetch_data_from_db(supplier, allegro_update):
     supplier_id = supplier_database_id[supplier]
-    client = MongoClient(uri, useUnifiedTopology=True)
+    client = AsyncIOMotorClient(uri)
 
     try:
-        await client.connect()
         database = client[db_name]
         collection = database[db_collection]
 
@@ -39,7 +38,7 @@ async def fetch_data_from_db(supplier, allegro_update):
         items_array = await documents.to_list(length=None)
         return items_array
     finally:
-        await client.close()
+        client.close()
 
 
 async def update_items_by_sku(supplier, skus):
@@ -48,16 +47,15 @@ async def update_items_by_sku(supplier, skus):
         return
 
     supplier_id = supplier_database_id[supplier]
-    client = MongoClient(uri, useUnifiedTopology=True)
+    client = AsyncIOMotorClient(uri)
 
     cleaned_skus = [sku.split("_", 2)[-1] for sku in skus]
 
     try:
-        await client.connect()
         database = client[db_name]
         collection = database[db_collection]
 
-        filter = {
+        filter_ = {
             "groups": supplier_id,
             "supplier_sku": {"$in": cleaned_skus}
         }
@@ -66,10 +64,12 @@ async def update_items_by_sku(supplier, skus):
             "$set": {"allegro_we_update_it": False}
         }
 
-        result = await collection.update_many(filter, update)
+        result = await collection.update_many(filter_, update)
         print(f"{result.modified_count} document(s) was/were updated.")
     except Exception as error:
         print("Error updating documents:", error)
+    finally:
+        client.close()
 
 
 async def update_items_by_allegro_id(supplier, allegro_ids):
@@ -78,23 +78,29 @@ async def update_items_by_allegro_id(supplier, allegro_ids):
         return
 
     supplier_id = supplier_database_id[supplier]
-    client = MongoClient(uri, useUnifiedTopology=True)
+    client = AsyncIOMotorClient(uri)
 
     try:
-        await client.connect()
         database = client[db_name]
         collection = database[db_collection]
 
-        filter = {
+        filter_ = {
             "groups": supplier_id,
             "allegro_oferta_id": {"$in": allegro_ids}
         }
-        print(filter)
+        print(filter_)
         update = {
             "$set": {"allegro_we_update_it": False}
         }
-        result = await collection.update_many(filter, update)
+        result = await collection.update_many(filter_, update)
         print(result)
         print(f"{result.modified_count} document(s) was/were updated.")
     except Exception as error:
         print("Error updating documents:", error)
+    finally:
+        client.close()
+
+# Пример вызова асинхронной функции
+# asyncio.run(fetch_data_from_db("unimet", True))
+# asyncio.run(update_items_by_sku("unimet", ["UNIMET_12345", "UNIMET_67890"]))
+# asyncio.run(update_items_by_allegro_id("unimet", ["12345", "67890"]))

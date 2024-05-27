@@ -27,7 +27,7 @@ async def get_token():
             access_token = document['access_token']
             refresh_token = document['refresh_token']
     finally:
-        await client.close()
+        client.close()
 
 
 async def check_token():
