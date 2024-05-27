@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "sup-python"
+version = "0.1.0"
+description = ""
+authors = ["Izbushko <izbaizbushka@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiohttp = "^3.9.5"
+motor = "^3.4.0"
+python-dotenv = "^1.0.1"
+asyncio = "^3.4.3"
+google = "^3.0.0"
+google-api-python-client = "^2.130.0"
+aiofiles = "^23.2.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
